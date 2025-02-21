@@ -43,3 +43,9 @@ def create_order(request):
         return Response({"message": "Order created, waiting for user validation!", "order": serializer.data}, status=201)
 
     return Response(serializer.errors, status=400)
+
+@api_view(['GET'])
+def list_orders(request):
+    orders = Order.objects.all()
+    serializer = OrderSerializer(orders, many=True)
+    return Response(serializer.data)
