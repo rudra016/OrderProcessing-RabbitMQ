@@ -1,5 +1,6 @@
-from django.shortcuts import render
-
+from django.shortcuts import get_object_or_404
+from dotenv import load_dotenv
+import os
 # Create your views here.
 import pika
 import json
@@ -9,9 +10,8 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .models import Order
 from .serializers import OrderSerializer
-
-RABBITMQ_URL = "amqps://mrxifpeh:5ngDkk7VFF_rhmziwX0uW8jOzcyzQRLJ@collie.lmq.cloudamqp.com/mrxifpeh"
-
+load_dotenv()
+RABBITMQ_URL = os.getenv("RABBITMQ_URL")
 def publish_to_user_service(user_id):
   
     params = pika.URLParameters(RABBITMQ_URL)
@@ -49,3 +49,19 @@ def list_orders(request):
     orders = Order.objects.all()
     serializer = OrderSerializer(orders, many=True)
     return Response(serializer.data)
+
+
+@api_view(['PUT'])
+def update_order(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    serializer = OrderSerializer(order, data=request.data, partial=True)  # `partial=True` allows updating only some fields
+    if serializer.is_valid():
+        serializer.save()
+        return Response({"message": "Order updated successfully!", "order": serializer.data}, status=200)
+    return Response(serializer.errors, status=400)
+
+@api_view(['DELETE'])
+def delete_order(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    order.delete()
+    return Response({"message": "Order deleted successfully!"}, status=204)
