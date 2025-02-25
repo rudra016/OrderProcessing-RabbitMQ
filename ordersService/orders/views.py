@@ -10,9 +10,19 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from .models import Order
 from .serializers import OrderSerializer
+from decimal import Decimal
+
 load_dotenv()
+
 RABBITMQ_URL = os.getenv("RABBITMQ_URL")
-def publish_to_user_service(user_id):
+
+def decimal_to_float(obj):
+
+    if isinstance(obj, Decimal):
+        return float(obj)
+    raise TypeError(f"Type {type(obj)} not serializable")
+
+def publish_to_user_service(user_id, event_type, order_data):
   
     params = pika.URLParameters(RABBITMQ_URL)
     context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
@@ -25,8 +35,18 @@ def publish_to_user_service(user_id):
 
     channel.queue_declare(queue="user_validation_queue")
 
-    message = json.dumps({"user_id": user_id})
-    channel.basic_publish(exchange='', routing_key="user_validation_queue", body=message)
+
+    message = json.dumps({ 
+        "user_id": user_id,
+        "event": event_type,
+        "order": order_data,
+    },
+    default=decimal_to_float 
+    )
+
+   
+
+    channel.basic_publish(exchange='', routing_key="user_validation_queue", body=message.encode("utf-8"))
 
     connection.close()
 
@@ -37,7 +57,8 @@ def create_order(request):
         user_id = serializer.validated_data['user_id']
         
         # Send message to User Management service
-        publish_to_user_service(user_id)
+        publish_to_user_service(user_id, "Order created", serializer.validated_data)
+
 
         serializer.save()
         return Response({"message": "Order created, waiting for user validation!", "order": serializer.data}, status=201)
@@ -57,6 +78,9 @@ def update_order(request, order_id):
     serializer = OrderSerializer(order, data=request.data, partial=True)  # `partial=True` allows updating only some fields
     if serializer.is_valid():
         serializer.save()
+
+        publish_to_user_service(order.user_id, "Order updated", serializer.validated_data)
+
         return Response({"message": "Order updated successfully!", "order": serializer.data}, status=200)
     return Response(serializer.errors, status=400)
 
