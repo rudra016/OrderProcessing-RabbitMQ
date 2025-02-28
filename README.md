@@ -105,7 +105,7 @@ python manage.py runserver 8001
 ## API Documentation
 
 Swagger/OpenAPI documentation is available at:
-127.0.0.1:8001/docs#/
+127.0.0.1:8001/swagger/
 
 ## Load Testing
 For load testing details, refer to [Load Testing](https://locustreport.tiiny.site).
