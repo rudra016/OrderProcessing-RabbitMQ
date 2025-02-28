@@ -11,6 +11,8 @@ from rest_framework.response import Response
 from .models import Order
 from .serializers import OrderSerializer
 from decimal import Decimal
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
 load_dotenv()
 
@@ -65,8 +67,15 @@ def create_order(request):
 
     return Response(serializer.errors, status=400)
 
+
+@swagger_auto_schema(
+    method='get',
+    operation_description="Retrieve all orders",
+    responses={200: openapi.Response("Success Response")},
+)
 @api_view(['GET'])
 def list_orders(request):
+    """Returns all orders"""
     orders = Order.objects.all()
     serializer = OrderSerializer(orders, many=True)
     return Response(serializer.data)
